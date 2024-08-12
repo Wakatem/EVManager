@@ -133,6 +133,17 @@ def build_variable_details_container():
 def load_component_from_files(new_component_name):
     global uploaded_files, dbmanager
 
+    if new_component_name == "":
+        States.page.snack_bar = ft.SnackBar(ft.Text("Component name cannot be empty"), bgcolor=ft.colors.YELLOW_800, duration=4000)
+        States.page.snack_bar.open = True
+        States.page.update()
+        return
+    elif len(uploaded_files) == 0:
+        States.page.snack_bar = ft.SnackBar(ft.Text("At least one enironment should be loaded"), bgcolor=ft.colors.YELLOW_800, duration=4000)
+        States.page.snack_bar.open = True
+        States.page.update()
+        return
+
     new_component_id = dbmanager.load_component_from_files(States.current_project_id, new_component_name, uploaded_files)
     uploaded_files.clear()
 
