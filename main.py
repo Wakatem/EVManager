@@ -40,7 +40,7 @@ def main(page: ft.Page):
                 States.page.add(page_content)
 
         page.update()
-        page.close()
+        page.close(drawer)
 
     drawer = ft.NavigationDrawer(
         on_dismiss=handle_dismissal,
