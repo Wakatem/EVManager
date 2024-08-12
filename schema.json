@@ -1,0 +1,31 @@
+{
+    "projects": {
+        "<PROJECT ID>": {
+            "name": "<PROJECT NAME>",
+            "date_created": "",
+            "date_updated": "",
+            "environments": {
+                "<ENVIRONMENT ID>": "<ENVIRONMENT NAME>"
+            },
+            "components": []
+        }
+    },
+
+    "components":{
+        "<COMPONENT ID>": {
+            "name": "<COMPONENT NAME>",
+            "project_id": "<PROJECT ID>",
+            "variables": {
+                "<VARIABLE ID>": {
+                    "name": "<VARIABLE NAME>",
+                    "env_values": {
+                        "<ENVIRONMENT ID>": "<VALUE>"
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
