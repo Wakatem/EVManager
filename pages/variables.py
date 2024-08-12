@@ -39,8 +39,8 @@ def populate_components_dropdown():
 def populate_variables_list(search_text=None):
     global dbmanager, variables_list
 
+    variables_list.controls.clear()
     if States.current_component_id is not None:
-        variables_list.controls.clear()
         current_component_variables = dbmanager.get_component_variables(States.current_component_id, search_text)
         for var_id, var in current_component_variables.items():
             variables_list.controls.append(
