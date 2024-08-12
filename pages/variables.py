@@ -23,6 +23,22 @@ dlg_modal = ft.AlertDialog(
         actions_alignment=ft.MainAxisAlignment.END)
 
 ############################################## Utilities ##############################################
+
+def set_current_variable_text_settings():
+    global current_variable_text, edit_mode
+    if edit_mode:
+        current_variable_text.disabled = False
+        current_variable_text.border_width = 1
+        current_variable_text.bgcolor = "white"
+        current_variable_text.color = "black"
+    else:
+        current_variable_text.disabled = True
+        current_variable_text.border_width = 0
+        current_variable_text.bgcolor = "transparent"
+        current_variable_text.color = "black"
+        current_variable_text.focus = False
+        current_variable_text.autofocus = False
+
 def populate_components_dropdown():
     global dbmanager
     current_project_components = dbmanager.get_project_components(States.current_project_id)
@@ -43,10 +59,17 @@ def populate_variables_list(search_text=None):
     if States.current_component_id is not None:
         current_component_variables = dbmanager.get_component_variables(States.current_component_id, search_text)
         for var_id, var in current_component_variables.items():
-            variables_list.controls.append(
-                ft.TextButton(key=var_id, text=var["name"], width="100%", 
-                              on_click=load_variable_details, 
-                              style=ft.ButtonStyle(bgcolor='transparent'))),
+            button = ft.TextButton(key=var_id, text=var["name"], width="100%", 
+                              on_click=load_variable_details)
+            
+            if var_id == States.current_variable_id:
+                button.style = ft.ButtonStyle(bgcolor=ft.colors.BLUE_GREY_100)
+                variables_list.data = button
+            else:
+                button.style = ft.ButtonStyle(bgcolor='transparent')
+            
+            variables_list.controls.append(button)
+                                                
 
 
 
@@ -61,14 +84,14 @@ def populate_variables_grid(env_values: dict):
             variables_grid.rows.append(
                 ft.DataRow(
                     cells=[
-                    ft.DataCell(content=ft.TextField(key=env_id, value=name, border_width=0, text_align=ft.TextAlign.CENTER, disabled=True, color="black", on_focus=set_field_focus, on_blur=set_field_blur)),
+                    ft.DataCell(content=ft.TextField(key=env_id, value=name, border_width=0, text_align=ft.TextAlign.CENTER, disabled=True, color="black")),
                     ft.DataCell(content=ft.TextField(key=env_id, value=value, border_width=0, text_align=ft.TextAlign.CENTER, disabled=True, color="black", on_focus=set_field_focus, on_blur=set_field_blur)),
                 ]),
             )
 
 
 def build_variable_details_container():
-    global current_variable_text, variables_grid, variable_details_container
+    global current_variable_text, variables_grid, variable_details_container, edit_mode
 
     new_content = None
 
@@ -110,9 +133,14 @@ def build_variable_details_container():
 def load_component_from_files(new_component_name):
     global uploaded_files, dbmanager
 
-    dbmanager.load_component_from_files(States.current_project_id, new_component_name, uploaded_files)
+    new_component_id = dbmanager.load_component_from_files(States.current_project_id, new_component_name, uploaded_files)
     uploaded_files.clear()
+
     populate_components_dropdown()
+    States.current_component_id = new_component_id
+    components_dropdown.value = new_component_id
+
+    populate_variables_list()
     
     dlg_modal.open = False
     States.page.update()
@@ -120,7 +148,9 @@ def load_component_from_files(new_component_name):
 ############################################## Handlers ##############################################
 
 def dropdown_option_handler(e: ft.ControlEvent):
-    global components_dropdown, dbmanager, dlg_modal, pick_files_dialog
+    global components_dropdown, dbmanager, dlg_modal, pick_files_dialog, edit_mode
+
+    edit_mode = not edit_mode
 
     if e.data == "create":
         # Create new component
@@ -196,7 +226,9 @@ def dropdown_option_handler(e: ft.ControlEvent):
 
     else:
         States.current_component_id = e.data
-        populate_variables_list()        
+        populate_variables_list()
+        States.current_variable_id = None
+        build_variable_details_container()        
         States.page.update()
 
 
@@ -205,7 +237,7 @@ def export_component(e: ft.ControlEvent):
 
     export_path = dbmanager.export_component(States.current_project_id, States.current_component_id)
 
-    States.page.snack_bar = ft.SnackBar(ft.Text(f"Successfully exported env files to {export_path}"), bgcolor=ft.colors.GREEN_700, duration=7000)
+    States.page.snack_bar = ft.SnackBar(ft.Text(f"Successfully exported env files to {export_path}"), bgcolor=ft.colors.GREEN_700, duration=10000)
     States.page.snack_bar.open = True
     States.page.update()
 
@@ -278,7 +310,7 @@ def load_variable_details(e: ft.ControlEvent):
     if var_id != States.current_variable_id:
         # Unhighlight the previously selected variable
         if e.control.parent.data:
-            e.control.parent.data.control.style.bgcolor = "transparent"
+            e.control.parent.data.style.bgcolor = "transparent"
         
         # Highlight the selected variable
         States.current_variable_id = var_id
@@ -293,7 +325,7 @@ def load_variable_details(e: ft.ControlEvent):
         populate_variables_grid(env_values)
         build_variable_details_container()
         
-        e.control.parent.data = e
+        e.control.parent.data = e.control
         
         States.page.update()
 
@@ -311,39 +343,42 @@ def toggle_edit_mode(e: ft.Control):
     edit_mode = not edit_mode
     if edit_mode:
         e.control.text = "Save"
-        current_variable_text.disabled = False
-        current_variable_text.border_width = 1
-        current_variable_text.bgcolor = "white"
-        current_variable_text.color = "black"
 
+        set_current_variable_text_settings()
         for row in variables_grid.rows:
             row.cells[1].content.disabled = False
             row.cells[1].content.bgcolor = "white"
     else:
+
+        # Save the new values and name
+        new_name = current_variable_text.value
+        if new_name == "":
+            States.page.snack_bar = ft.SnackBar(ft.Text("Variable name cannot be empty"), bgcolor=ft.colors.YELLOW_800, duration=4000)
+            States.page.snack_bar.open = True
+            States.page.update()
+            return
+        
         # Disable edit mode
         e.control.text = "Edit"
-        current_variable_text.disabled = True
-        current_variable_text.border_width = 0
-        current_variable_text.bgcolor = "transparent"
-        current_variable_text.color = "black"
-        current_variable_text.focus = False
-        current_variable_text.autofocus = False
 
+        set_current_variable_text_settings()
         for row in variables_grid.rows:
             row.cells[1].content.disabled = True
             row.cells[1].content.bgcolor = "transparent"
 
-
-        # Save the new values and name
-        new_name = current_variable_text.value
+        
         new_env_values = {}
 
         for row in variables_grid.rows:
             env_id = row.cells[1].content.key
-            new_env_values[env_id] = row.cells[1].content.value
+            new_value = row.cells[1].content.value
+            if new_value == "":
+                new_value = "<EMPTY>"
+            new_env_values[env_id] = new_value
         
         dbmanager.save_variable_details(States.current_component_id, States.current_variable_id, new_name, new_env_values)
         populate_variables_list()
+        populate_variables_grid(new_env_values)
 
     States.page.update()
 
@@ -359,10 +394,12 @@ def cache_file(file: ft.FilePickerResultEvent):
     States.page.update()
 
 def set_field_focus(e: ft.ControlEvent):
+    e.control.focus= True
     e.control.autofocus = True
     States.page.update()
 
 def set_field_blur(e: ft.ControlEvent):
+    e.control.focus= False
     e.control.autofocus = False
     States.page.update()
 

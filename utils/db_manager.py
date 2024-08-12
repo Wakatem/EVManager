@@ -4,6 +4,8 @@ from datetime import datetime
 import random
 import string
 import os
+import flet as ft
+from .states import States
 
 def generate_id(prefix=None, length=6):
     if prefix:
@@ -193,17 +195,29 @@ class DBManager:
                              project.project_id == project_id)
 
         # Group extracted variables by name, and link with every environment
+        invalid_lines = []
         all_vars = {}
         for env_id, file_path in files.items():
             with open(file_path, "r") as file:
                 for line in file:
                     line = line.strip()
                     if line:
-                        var_name, var_value = map(str.strip, line.split("=", 1))
+                        try:
+                            var_name, var_value = map(str.strip, line.split("=", 1))
+                        except Exception as e:
+                            print(f"Error reading line: {line}")
+                            invalid_lines.append(line)
                         if var_name not in all_vars:
                             all_vars[var_name] = {}
                         all_vars[var_name][env_id] = var_value 
-
+        
+        if len(invalid_lines) > 0:
+            # Concatenate all invalid lines
+            error_message = "\n".join(invalid_lines)
+            error_message = f"Could not extract variables from the following lines:\n{error_message}"
+            States.page.snack_bar = ft.SnackBar(ft.Text(error_message), bgcolor=ft.colors.RED_700, duration=7000)
+            States.page.snack_bar.open = True
+            States.page.update()
 
         project_environments = self.get_project_environments(project_id)
         for var_name, env_values in all_vars.items():
@@ -213,6 +227,8 @@ class DBManager:
                     env_values[env_id] = "<EMPTY>"
 
             self.add_variable(project_id, component_id, var_name, env_values) 
+        
+        return component_id
 
     def rename_environment(self, project_id, env_id, new_name):
         project = Query()
