@@ -1,6 +1,4 @@
-# A test Flet app
-
-An example of a minimal Flet app.
+# A Flet app to manage environment variables of different applications
 
 To run the app:
 
